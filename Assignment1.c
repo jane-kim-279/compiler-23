@@ -19,7 +19,7 @@ typedef struct HTentry {
 enum errorTypes { noerror, illsp, illid, overst };
 typedef enum errorTypes ERRORtypes;
 
-char seperators[] = " .,;:?!\t\n";
+char separators[] = " .,;:?!\t\n";
 
 HTpointer HT[HTsize];
 char ST[STsize];
@@ -48,7 +48,7 @@ void initialize()
 // Skip Seperators - skip over strings of spaces,tabs,newlines, . , ; : ? !
 // if illegal seperators,print out error message.
 
-void SkipSeperators()
+void SkipSeparators()
 {
 	char *ptr = strchr(separators, input);
 
@@ -179,7 +179,7 @@ int main()
 
 	while (input != EOF) {
 		err = noerror;
-		SkipSeperators();
+		SkipSeparators();
 		ReadID();
 
 		//(강승연)선언되지 않은 변수 사용으로 인한 에러 발생 - 주석처리
