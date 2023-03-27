@@ -5,7 +5,10 @@
 #define FILE_NAME "testdata.txt"
 #define STsize 1000 //size of string table
 #define HTsize 100 //size of hash table
-// more define variables¡¦
+// more define variablesï¿½ï¿½
+//ê¹€ì œì¸ - ì¶”ê°€ ë§¤í¬ë¡œ í•¨ìˆ˜ ì •ì˜
+#define isLetter(x) (((x) >= 'a' && (x) <= 'z') || ((x) >= 'A' && (x) <= 'Z') || (x) == '_')
+#define isDigit(x) ((x) >= '0' && (x) <= '9')
 
 typedef struct HTentry* HTpointer;
 typedef struct HTentry {
@@ -16,13 +19,17 @@ typedef struct HTentry {
 enum errorTypes { noerror, illsp, illid, overst };
 typedef enum errorTypes ERRORtypes;
 
-char seperators[] = " .,;:?!\t\n";
+char separators[] = " .,;:?!\t\n";
 
 HTpointer HT[HTsize];
 char ST[STsize];
 
-// more global variables¡¦
+// more global variablesï¿½ï¿½
 ERRORtypes err;
+//ë³€ìˆ˜ ì¶”ê°€ ì •ì˜
+int hash_code; // ì‹ë³„ì í•´ì‹œì½”ë“œ
+int found; // ì‹ë³„ìê°€ ì´ë¯¸ ì¡´ì¬í•˜ëŠ” ê²½ìš°ë¥¼ ìœ„í•œ flag
+int same; // ì‹ë³„ìì˜ ì²«ë²ˆì§¸ ì¸ë±ìŠ¤(starting index)
 
 FILE* fp; //to be a pointer to FILE
 char input;
@@ -37,16 +44,29 @@ void initialize()
 }
 
 
-//±èÁ¦ÀÎ
+//ê¹€ì œì¸
 // Skip Seperators - skip over strings of spaces,tabs,newlines, . , ; : ? !
 // if illegal seperators,print out error message.
 
-void SkipSeperators()
+void SkipSeparators()
 {
+	char *ptr = strchr(separators, input);
+
+	// íŒŒì¼ íƒìƒ‰ ì¤‘ì¸ë° ë¬¸ìë„ ìˆ«ìë„ ì•„ë‹Œ ì…ë ¥ì¸ ê²½ìš°
+	while(input != EOF && (isLetter(input) || isDigit(input)))
+	{
+		// ì •ì˜ëœ êµ¬ë¶„ìë„ ì•„ë‹Œ ê²½ìš°
+		if (ptr == NULL)
+		{
+			err = illsp;
+			PrintError(err);
+		}
+		input = fgetc(fp); // ë‹¤ìŒ ê¸€ìë¡œ ë°˜ë³µ
+	} // ë¬¸ì, ìˆ«ìë©´ whileë¬¸ íƒˆì¶œ
 }
 
 
-//¼ÒÇö¾Æ
+//ì†Œí˜„ì•„
 // PrintHStable - Prints the hash table.write out the hashcode and the list of identifiers
 // associated with each hashcode,but only for non-empty lists.
 // Print out the number of characters used up in ST.
@@ -55,18 +75,18 @@ int PrintHStable(int sum)
 {
 	printf("[[HASH TABLE]]\n\n");
 	for (int h = 0; h < HTsize; h++) {
-		if (HT[h] == NULL) //HT ºñ¾îÀÖÀ»¶§
+		if (HT[h] == NULL) //HT ë¹„ì–´ìˆì„ë•Œ
 			continue;
-		else { //HT ºñ¾îÀÖÁö¾ÊÀ»¶§
-			printf("Hash Code %d : ",h); //Hash Code x : ±îÁö Ãâ·Â
+		else { //HT ë¹„ì–´ìˆì§€ì•Šì„ë•Œ
+			printf("Hash Code %d : ",h); //Hash Code x : ê¹Œì§€ ì¶œë ¥
 			HTentry K = *HT[h];
 			int HInd = K.index;
-			while (ST[HInd] != '\0') { //index·Î Á¢±ÙÇØ identifier³¡±îÁö Ãâ·Â
+			while (ST[HInd] != '\0') { //indexë¡œ ì ‘ê·¼í•´ identifierëê¹Œì§€ ì¶œë ¥
 				printf("%c", ST[HInd]);
 				HInd++;
 				sum++;
 			}
-			while (K.next != NULL) { //HTentryÀÇ ´ÙÀ½ pointer°¡ nullÀÏ¶§±îÁö ¹İº¹
+			while (K.next != NULL) { //HTentryì˜ ë‹¤ìŒ pointerê°€ nullì¼ë•Œê¹Œì§€ ë°˜ë³µ
 				printf("   ");
 				K = *(K.next);
 				HInd = K.index;
@@ -82,7 +102,7 @@ int PrintHStable(int sum)
 }
 
 
-//°­½Â¿¬
+//ê°•ìŠ¹ì—°
 // PrintError - Print out error messages
 // overst : overflow in ST
 // print the hashtable and abort by calling the function "abort()".
@@ -94,7 +114,7 @@ void PrintError(ERRORtypes err)
 }
 
 
-//±èÁ¦ÀÎ
+//ê¹€ì œì¸
 //ReadIO - Read identifier from the input file the string table ST directly into
 // ST(append it to the previous identifier).
 // An identifier is a string of letters and digits, starting with a letter.
@@ -105,15 +125,20 @@ void ReadID()
 }
 
 
-//±èÇıÁø
+//ê¹€í˜œì§„
 // ComputeHS - Compute the hash code of identifier by summing the ordinal values of its
 // characters and then taking the sum modulo the size of HT.
 void ComputeHS(int nid, int nfree)
 {
+	int c = 0; // ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½Ö´ï¿½ ï¿½ï¿½ï¿½ï¿½
+	int i;
+	for (i = nid; i < nfree - 1; i++)
+		c += (int)ST[i]; // ï¿½İºï¿½ï¿½ï¿½ ï¿½Ì¿ï¿½ï¿½Ø¼ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ ï¿½ï¿½ï¿½Ï±ï¿½
+	hash_code = c % HTsize; // ï¿½Ø½ï¿½ï¿½ï¿½ï¿½Ìºï¿½ Å©ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½î¼­ ï¿½Ø½ï¿½ï¿½Úµï¿½ ï¿½ï¿½ï¿½
 }
 
 
-//±èÇıÁø
+//ê¹€í˜œì§„
 // LookupHS -For each identifier,Look it up in the hashtable for previous occurrence
 // of the identifier.If find a match, set the found flag as true.
 // Otherwise flase.
@@ -124,7 +149,7 @@ void LookupHS(int nid, int hscode)
 }
 
 
-//°­½Â¿¬
+//ê°•ìŠ¹ì—°
 // ADDHT - Add a new identifier to the hash table.
 // If list head ht[hashcode] is null, simply add a list element with
 // starting index of the identifier in ST.
@@ -132,10 +157,35 @@ void LookupHS(int nid, int hscode)
 
 void ADDHT(int hscode)
 {
+	HTpointer htp; //êµ¬ì¡°ì²´ ë³€ìˆ˜ ì„ ì–¸
+	int i, j;
+
+	found = 0; // ì‹ë³„ìê°€ ë‚˜ì˜¤ì§€ ì•Šì€ ìƒíƒœ
+	if (HT[hscode] != NULL) { // ë¹„ì–´ìˆì§€ ì•Šì€ ê²½ìš°
+		htp = HT[hscode];
+		while (htp != NULL && found == 0) {
+			found = 1; // flagë¥¼ trueë¡œ ì„¤ì •
+			i = htp->index;
+			j = nid;
+			same = i; // í•´ë‹¹ ì¸ë±ìŠ¤ë¥¼ ì €ì¥
+
+			while (ST[i] != '\0' && ST[j] != '\0' && found == 1) { // í•´ì‹œí…Œì´ë¸” ëê¹Œì§€ ê° ì‹ë³„ì ë¹„êµí•˜ë©´ì„œ ê²¹ì¹˜ëŠ” ê²ƒ ì°¾ê¸°
+
+				if (ST[i] != ST[j])
+					found = 0; // ì‹ë³„ìê°€ ë˜ ë‚˜ì˜¤ì§€ ì•Šì€ ê²ƒì´ë¯€ë¡œ flagë¥¼ falseë¡œ ì„¤ì •
+
+				else {
+					i += 1;
+					j += 1; // ì´ì¤‘ whileë¬¸ ë°˜ë³µ ìœ„í•´
+				}
+			}
+			htp = htp->next;
+		}
+	}
 }
 
 
-//¼ÒÇö¾Æ
+//ì†Œí˜„ì•„
 // MAIN - Read the identifier from the file directly into ST.
 /*Compute its hashcode.
 Look up the idetifier in hashtable HT[hashcode]
@@ -163,10 +213,10 @@ int main()
 
 	while (input != EOF) {
 		err = noerror;
-		SkipSeperators();
+		SkipSeparators();
 		ReadID();
 		/*
-		//(°­½Â¿¬)¼±¾ğµÇÁö ¾ÊÀº º¯¼ö »ç¿ëÀ¸·Î ÀÎÇÑ ¿¡·¯ ¹ß»ı - ÁÖ¼®Ã³¸®
+		//(ê°•ìŠ¹ì—°)ì„ ì–¸ë˜ì§€ ì•Šì€ ë³€ìˆ˜ ì‚¬ìš©ìœ¼ë¡œ ì¸í•œ ì—ëŸ¬ ë°œìƒ - ì£¼ì„ì²˜ë¦¬
 		
 		if (input != EOF && err != illid) {
 			if (nextfree == STsize) { 
