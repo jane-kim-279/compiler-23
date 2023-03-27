@@ -51,8 +51,34 @@ void SkipSeperators()
 // associated with each hashcode,but only for non-empty lists.
 // Print out the number of characters used up in ST.
 
-void PrintHStable()
+int PrintHStable(int sum)
 {
+	printf("[[HASH TABLE]]\n\n");
+	for (int h = 0; h < HTsize; h++) {
+		if (HT[h] == NULL) //HT 비어있을때
+			continue;
+		else { //HT 비어있지않을때
+			printf("Hash Code %d : ",h); //Hash Code x : 까지 출력
+			HTentry K = *HT[h];
+			int HInd = K.index;
+			while (ST[HInd] != '\0') { //index로 접근해 identifier끝까지 출력
+				printf("%c", ST[HInd]);
+				HInd++;
+				sum++;
+			}
+			while (K.next != NULL) { //HTentry의 다음 pointer가 null일때까지 반복
+				printf("   ");
+				K = *(K.next);
+				HInd = K.index;
+				while (ST[HInd] != '\0') {
+					printf("%c", ST[HInd]);
+					HInd++;
+				}
+			}
+			printf("\n");
+		}
+	} 
+	return sum;
 }
 
 
@@ -120,9 +146,17 @@ Print the identifier, its index in ST, and whether it was entered or present.
 Print out the hashtable, and number of characters used up in ST
 */
 
+void PrintHeading()
+{
+	printf("-----------          ----------\n");
+	printf("Index in ST          identifier\n");
+	printf("-----------          ----------\n");
+}
+
 int main()
 {
-	int i;
+	int i; //?
+	int sum = 0;
 
 	PrintHeading();
 	initialize();
@@ -131,11 +165,11 @@ int main()
 		err = noerror;
 		SkipSeperators();
 		ReadID();
-
-		//(강승연)선언되지 않은 변수 사용으로 인한 에러 발생 - 주석처리
 		/*
+		//(강승연)선언되지 않은 변수 사용으로 인한 에러 발생 - 주석처리
+		
 		if (input != EOF && err != illid) {
-			if (nextfree == STsize) {
+			if (nextfree == STsize) { 
 				// print error message
 			}
 
@@ -153,6 +187,6 @@ int main()
 		}
 		*/
 	}
-
-	PrintHStable();
+	PrintHStable(sum);
+	printf("< %d characters are used in the string table >",sum);
 }
