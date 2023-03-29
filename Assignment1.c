@@ -1,242 +1,315 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
-#define FILE_NAME "testdata.txt"
-#define STsize 1000 //size of string table
-#define HTsize 100 //size of hash table
-// more define variables��
-//김제인 - 추가 매크로 함수 정의
-#define isLetter(x) (((x) >= 'a' && (x) <= 'z') || ((x) >= 'A' && (x) <= 'Z') || (x) == '_')
-#define isDigit(x) ((x) >= '0' && (x) <= '9')
+#define FILE_NAME "./2023_testdata/testdata4.txt"
+
+#define STsize 1000 //스트링 테이블 크기 나타내는 상수 선언
+#define HTsize 100 //해시 테이블 크기 나타내는 상수 선언
+#define TTsize 50 //ReadIID에서 사용하는 임시 테이블 크기 나타내는 상수 선언 (추가로 정의함)
+
+#define FALSE 0
+#define TRUE 1
+
+#define isLetter(x) ( ((x) >= 'a' && (x) <= 'z') || ((x)>= 'A' && (x) <= 'Z') || (x) == '_')
+#define isDigit(x) ((x)>= '0' && (x) <= '9') // 구분자인지 아닌지 알기 위해 사용
 
 typedef struct HTentry* HTpointer;
 typedef struct HTentry {
-	int index; //index of identifier in ST
-	HTpointer next; //pointer to next identifier
-} HTentry;
+    int index;
+    HTpointer next;
+}HTentry;
 
-enum errorTypes { noerror, illsp, illid, overst };
+enum errorTypes { noerror, illid, overst, overtwelve }; // 12자 넘는 것 제외하기 위해 overtwelve 추가 정의
 typedef enum errorTypes ERRORtypes;
 
-char separators[] = " .,;:?!\t\n";
+char seperators[] = " .,;:?!\t\n";
 
 HTpointer HT[HTsize];
 char ST[STsize];
+char TempT[TTsize]; // 추가로 정의
 
-// more global variables��
+int nextid = 0;
+int nextfree = 0;
+
+int hashcode;
+int sameid; // 구분자 구하기 위한 변수들
+
+int found;
+int allowed;
+char unallowedchar; // 문제에 제시된 기호 아닌 다른 기호 에러 처리 위해 정의한 변수
+
 ERRORtypes err;
-//변수 추가 정의
-int hash_code; // 식별자 해시코드
-int found; // 식별자가 이미 존재하는 경우를 위한 flag
-int same; // 식별자의 첫번째 인덱스(starting index)
 
-FILE* fp; //to be a pointer to FILE
+FILE* fp;
 char input;
 
 
-//Initialize - open input file
-
+//초기화 (파일 읽기 위해)
 void initialize()
 {
-	fp = fopen(FILE_NAME, "r");
-	input = fgetc(fp);
+    fp = fopen(FILE_NAME, "r");
+    input = fgetc(fp);
 }
 
 
-//김제인
-// Skip Seperators - skip over strings of spaces,tabs,newlines, . , ; : ? !
-// if illegal seperators,print out error message.
-
-void SkipSeparators()
+//구분자 찾아내기 위해 새롭게 정의한 함수
+int isSeperator(char c)
 {
-	char *ptr = strchr(separators, input);
+    int i;
+    int sep_len;
 
-	// 파일 탐색 중인데 문자도 숫자도 아닌 입력인 경우
-	while(input != EOF && (isLetter(input) || isDigit(input)))
-	{
-		// 정의된 구분자도 아닌 경우
-		if (ptr == NULL)
-		{
-			err = illsp;
-			PrintError(err);
-		}
-		input = fgetc(fp); // 다음 글자로 반복
-	} // 문자, 숫자면 while문 탈출
+    sep_len = strlen(seperators);
+    for (i = 0; i < sep_len; i++) {
+        if (c == seperators[i])
+            return 1;
+    }
+    return 0;
 }
 
 
-//소현아
-// PrintHStable - Prints the hash table.write out the hashcode and the list of identifiers
-// associated with each hashcode,but only for non-empty lists.
-// Print out the number of characters used up in ST.
 
-int PrintHStable(int sum)
-{
-	printf("[[HASH TABLE]]\n\n");
-	for (int h = 0; h < HTsize; h++) {
-		if (HT[h] == NULL) //HT 비어있을때
-			continue;
-		else { //HT 비어있지않을때
-			printf("Hash Code %d : ",h); //Hash Code x : 까지 출력
-			HTentry K = *HT[h];
-			int HInd = K.index;
-			while (ST[HInd] != '\0') { //index로 접근해 identifier끝까지 출력
-				printf("%c", ST[HInd]);
-				HInd++;
-				sum++;
-			}
-			while (K.next != NULL) { //HTentry의 다음 pointer가 null일때까지 반복
-				printf("   ");
-				K = *(K.next);
-				HInd = K.index;
-				while (ST[HInd] != '\0') {
-					printf("%c", ST[HInd]);
-					HInd++;
-				}
-			}
-			printf("\n");
-		}
-	} 
-	return sum;
-}
-
-
-//강승연
-// PrintError - Print out error messages
-// overst : overflow in ST
-// print the hashtable and abort by calling the function "abort()".
-// illid : illegal identifier
-// illsp :illegal seperator
-
-void PrintError(ERRORtypes err)
-{
-}
-
-
-//김제인
-//ReadIO - Read identifier from the input file the string table ST directly into
-// ST(append it to the previous identifier).
-// An identifier is a string of letters and digits, starting with a letter.
-// If first letter is digit, print out error message.
-
-void ReadID()
-{
-}
-
-
-//김혜진
-// ComputeHS - Compute the hash code of identifier by summing the ordinal values of its
-// characters and then taking the sum modulo the size of HT.
-void ComputeHS(int nid, int nfree)
-{
-	int c = 0; // ���� ���� �� �ִ� ����
-	int i;
-	for (i = nid; i < nfree - 1; i++)
-		c += (int)ST[i]; // �ݺ��� �̿��ؼ� �� ���� �� ���ϱ�
-	hash_code = c % HTsize; // �ؽ����̺� ũ��� ����� �ؽ��ڵ� ���
-}
-
-
-//김혜진
-// LookupHS -For each identifier,Look it up in the hashtable for previous occurrence
-// of the identifier.If find a match, set the found flag as true.
-// Otherwise flase.
-// If find a match, save the starting index of ST in same id.
-
-void LookupHS(int nid, int hscode)
-{
-}
-
-
-//강승연
-// ADDHT - Add a new identifier to the hash table.
-// If list head ht[hashcode] is null, simply add a list element with
-// starting index of the identifier in ST.
-// IF list head is not a null , it adds a new identifier to the head of the chain
-
-void ADDHT(int hscode)
-{
-	HTpointer htp; //구조체 변수 선언
-	int i, j;
-
-	found = 0; // 식별자가 나오지 않은 상태
-	if (HT[hscode] != NULL) { // 비어있지 않은 경우
-		htp = HT[hscode];
-		while (htp != NULL && found == 0) {
-			found = 1; // flag를 true로 설정
-			i = htp->index;
-			j = nid;
-			same = i; // 해당 인덱스를 저장
-
-			while (ST[i] != '\0' && ST[j] != '\0' && found == 1) { // 해시테이블 끝까지 각 식별자 비교하면서 겹치는 것 찾기
-
-				if (ST[i] != ST[j])
-					found = 0; // 식별자가 또 나오지 않은 것이므로 flag를 false로 설정
-
-				else {
-					i += 1;
-					j += 1; // 이중 while문 반복 위해
-				}
-			}
-			htp = htp->next;
-		}
-	}
-}
-
-
-//소현아
-// MAIN - Read the identifier from the file directly into ST.
-/*Compute its hashcode.
-Look up the idetifier in hashtable HT[hashcode]
-If matched, delete the identifier from STand print ST - index
-of the matching identifier.
-If not matched, add a new element to the list, pointing to new identifier.
-Print the identifier, its index in ST, and whether it was entered or present.
-Print out the hashtable, and number of characters used up in ST
-*/
-
+//헤더 출력 함수
 void PrintHeading()
 {
-	printf("-----------          ----------\n");
-	printf("Index in ST          identifier\n");
-	printf("-----------          ----------\n");
+    printf("\n\n");
+    printf(" ----------    ---------- \n");
+    printf(" Index in ST   identifier \n");
+    printf(" ----------    ---------- \n");
+    printf("\n");
 }
 
-int main()
+
+//헤시테이블 출력
+void PrintHStable()
 {
-	int i; //?
-	int sum = 0;
+    int HInd;
+    printf("\n\n[[HASH TABLE]]\n\n");
+    for (int h = 0; h < HTsize; h++) {
+        if (HT[h] == NULL) //HT 비어있을때
+            continue;
+        else { //HT 비어있지않을때
+            printf("Hash Code %3d : ", h); //Hash Code x : 까지 출력
+            HTentry K = *HT[h];
+            int HInd = K.index;
+            while (ST[HInd] != '\0') { //index로 접근해 identifier끝까지 출력
+                printf("%c", ST[HInd]);
+                HInd++;
+            }
+            while (K.next != NULL) { //HTentry의 다음 pointer가 null일때까지 반복
+                printf("   ");
+                K = *(K.next);
+                HInd = K.index;
+                while (ST[HInd] != '\0') {
+                    printf("%c", ST[HInd]);
+                    HInd++;
+                }
+            }
+            printf("\n");
+        }
+    }
+    printf("\n\n< %d characters are used in the string table >\n", nextfree);
+}
 
-	PrintHeading();
-	initialize();
 
-	while (input != EOF) {
-		err = noerror;
-		SkipSeparators();
-		ReadID();
-		/*
-		//(강승연)선언되지 않은 변수 사용으로 인한 에러 발생 - 주석처리
-		
-		if (input != EOF && err != illid) {
-			if (nextfree == STsize) { 
-				// print error message
-			}
+//에러 출력 함ㅅ수
+void PrintError(ERRORtypes err)
+{
+    switch (err) {
+    case overst:
+        printf("...Error...       OVERFLOW"); //오버플로우된 경우
+        PrintHStable();
+        exit(0);
+        break;
 
-			ST[nextfree++] = '\0';
-			ComputeHS(nextid, nextfree);
-			LookupHS(nextid, hashcode);
+    case illid:  // 숫자로 시작하는 경우
+        printf("...Error...     ");
+        while (input != EOF && (isLetter(input) || isDigit(input))) {
+            printf("%c", input);
+            input = fgetc(fp);
+        }
+        printf("           start with digit \n");
+        break;
 
-			if (!found) {
-				// print message
-				ADDHT(hashcode);
-			}
-			else {
-				// print message
-			}
-		}
-		*/
-	}
-	PrintHStable(sum);
-	printf("< %d characters are used in the string table >",sum);
+    case overtwelve: // 열두 글자 초과하는 경우
+        printf("...Error... ");
+        for (int i = nextid; i < nextfree - 1; i++)
+            printf("%c", ST[i]);
+        printf("         too long identifier \n");
+        break;
+    }
+}
+
+
+
+// 구분자일 경우 그냥 넘어가고 아닐 경우 에러 처리(illspr)하는 함수였으나 printerror 호출하지 않고 main에서 출력하는 걸로 바꿈
+void SkipSeperators()
+{
+    char* ptr = strchr(seperators, input);
+
+    while (input != EOF && !(isLetter(input) || isDigit(input))) {
+        if (!isSeperator(input)) {//구분자도 아닐때
+            break;
+        }
+        input = fgetc(fp);
+    }
+}
+
+
+
+//파일에서 문자 읽어온 후 ST에 집어넣는 함수. LookupHS 함수와 구성 비슷함
+void ReadID()
+{
+    int i = 0;
+    allowed = 0; // flag
+    nextid = nextfree;
+    if (isDigit(input)) {
+        err = illid;
+        PrintError(err);
+    }
+    else {
+        while (input != EOF && !isSeperator(input)) {
+            if (!(isLetter(input) || isDigit(input))) {
+                unallowedchar = input;
+                allowed = 1;
+            }
+            TempT[i] = input;
+            i++;
+            input = fgetc(fp);
+        }
+
+        if (allowed == 0) {
+            for (int j = 0; j < i; j++) {
+                if (nextfree == STsize) {
+                    err = overst;
+                    PrintError(err); // 오버플로우에 대한 에러 처리 위해 함수 호출
+                }
+                ST[nextfree++] = TempT[j]; //Tempt 이용해서 사용 가능한 구분자 사용한 것만 ST에 담음
+            }
+        }
+        else allowed = i;
+    }
+}
+
+
+
+
+//해시테이블 계산
+void ComputeHS(int nid, int nfree)
+{
+    int code, i;
+    code = 0;
+    for (i = nid; i < nfree - 1; i++)
+        code += tolower(ST[i]);
+    hashcode = code % HTsize; // 각 값을 더해서 테이블 크기로 나눔
+}
+
+
+
+
+
+// 중복값 있는지 확인하는 함수
+void LookupHS(int nid, int hscode)
+{
+    HTpointer here;
+    int i, j;
+
+    found = FALSE;
+    if (HT[hscode] != NULL) {
+        here = HT[hscode];
+        while (here != NULL && found == FALSE) {
+            found = TRUE;
+            i = here->index; // 해시테이블 포인터의 인덱스 접근: 인덱스 이용하여 테이블 내에 있는 다른 값과 비교
+            j = nid;
+            sameid = i;
+
+            while (ST[i] != '\0' && ST[j] != '\0' && found == TRUE) {
+                if (toupper(ST[i]) != toupper(ST[j])) { // toupper 함수 이용하여 대소문자 무시
+                    found = FALSE;
+                }
+                else {
+                    i++;
+                    j++;
+                }
+            }
+            here = here->next;
+        }
+    }
+}
+
+
+
+
+//해시테이블에 새로운 값 추가
+void ADDHT(int hscode)
+{
+    HTpointer ptr;
+
+    ptr = (HTpointer)malloc(sizeof(ptr)); // 구조체 동적 할당
+    ptr->index = nextid; // 구분자 값
+    ptr->next = HT[hscode];
+    HT[hscode] = ptr; // 최종적으로 해시테이블에 추가
+}
+
+
+
+//메인 함수: 위에서 만든 사용자정의 함수를 조합하고 허용되지 않는 구분자라는 에러, 오버플로우 에러 출력
+int main() {
+    int i;
+    PrintHeading();
+    initialize();
+
+    while (input != EOF) {
+        err = noerror;
+        SkipSeperators();
+        if (input != EOF) {
+            ReadID();
+            if (allowed != 0)
+            {
+                printf("...Error...   ");
+                for (i = 0; i < allowed; i++)
+                    printf("%c", TempT[i]);
+                printf("  %c Is not allowed\n", unallowedchar);
+                continue;
+            }
+
+            if (err != illid) {
+                if (nextfree == STsize) {
+                    err = overst;
+                    PrintError(err);
+                }
+                ST[nextfree++] = '\0';
+
+                ComputeHS(nextid, nextfree);
+                LookupHS(nextid, hashcode);
+
+                if (!found) {
+                    if (nextfree - nextid > 12) {
+                        err = overtwelve;
+                        PrintError(err); // 열두글자 이상인 경우
+                    }
+
+                    else {
+                        printf("%6d         ", nextid);
+                        for (i = nextid; i < nextfree - 1; i++)
+                            printf("%c", ST[i]);
+                        printf("     (entered)\n");
+                        ADDHT(hashcode);
+                    }
+
+                }
+                else {
+                    printf("%6d         ", sameid);
+                    for (i = nextid; i < nextfree - 1; i++)
+                        printf("%c", ST[i]);
+                    printf("     (already existed)\n");
+                    nextfree = nextid;
+                }
+            }
+        }
+    }
+    PrintHStable();
 }
