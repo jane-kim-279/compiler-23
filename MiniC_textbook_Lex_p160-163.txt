@@ -2,17 +2,6 @@
 	/* lex source for Mini C */
 %}
 %%
-"{"				return(TBEGIN);
-"}"				return(TEND);
-int				return(TINTEGER);
-{letter}({letter}|{digit})*	return(TIDEN);
-":="				return(TASSIGN);
-"+"				return(TADD);
-{digit}+			return(TNUM);
-";"				return(TSEMI);
-\.				return(TDOT);
-[ \t\n]				;
-.				return(TERROR);
 "const" 	return(TCONST);
 "else" 	return(TELSE);
 "if" 	return(TIF);
