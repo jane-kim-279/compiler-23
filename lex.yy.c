@@ -405,7 +405,7 @@ char *yytext;
 #line 2 "scanner.l"
 #include <stdio.h>
 #include <stdlib.h>
-#include <"tn.h">
+#include "tn.h"
 #line 410 "lex.yy.c"
 
 /* Macros after this point can all be overridden by user definitions in
